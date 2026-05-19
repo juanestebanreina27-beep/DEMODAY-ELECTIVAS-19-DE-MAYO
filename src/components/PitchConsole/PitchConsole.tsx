@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Square, Music, Timer, MessageSquare, VolumeX, Pause } from 'lucide-react';
-import { useAudioController, stopAllAudio } from '../../hooks/useAudioController';
+import { useAudioController, stopAllAudio, playSyntheticBeep, playChimeAlert } from '../../hooks/useAudioController';
 import { AUDIO_PATHS, AUDIO_VOLUMES } from '../../data/content';
 
 type ConsoleState = 'idle' | 'walkup' | 'pitch' | 'timesup' | 'feedback' | 'feedback-done';
@@ -51,6 +51,21 @@ export default function PitchConsole({ groupNumber, entradaAudio }: PitchConsole
           sfxAudio.play(AUDIO_PATHS.sfxTimesUp, { loop: false, volume: AUDIO_VOLUMES.sfxTimesUp });
           return 0;
         }
+
+        const nextTime = prev - 1;
+
+        // Alerta a falta de exactamente 1 minuto (60 segundos) -> Chime digital melodioso
+        if (nextTime === 60) {
+          playChimeAlert(0.45);
+        }
+
+        // Cuenta regresiva sonora en los últimos 10 segundos con tono incremental (tensión)
+        if (nextTime <= 10 && nextTime > 0) {
+          const baseFreq = 700; // Frecuencia base en Hz
+          const incrementalFreq = baseFreq + (10 - nextTime) * 80; // Sube de 700Hz a 1420Hz
+          playSyntheticBeep(incrementalFreq, 0.08, 'sine');
+        }
+
         return prev - 1;
       });
     }, 1000);
@@ -159,13 +174,25 @@ export default function PitchConsole({ groupNumber, entradaAudio }: PitchConsole
               className="relative"
             >
               <div
-                className={`text-5xl font-bold tracking-tight ${isTimesUp ? 'text-orange-intense glow-text-orange' : 'text-text-dark'}`}
+                className={`text-5xl font-bold tracking-tight transition-all duration-500 ${
+                  isTimesUp
+                    ? 'text-orange-intense glow-text-orange scale-110'
+                    : (timeLeft <= 60 && timeLeft > 0)
+                      ? 'text-orange-primary animate-pulse scale-105'
+                      : 'text-text-dark'
+                }`}
                 style={{ fontFamily: 'var(--font-mono)' }}
               >
                 {formatTime(timeLeft)}
               </div>
-              <div className="text-xs text-text-light mt-1 uppercase tracking-wider">
-                {isTimesUp ? '⚡ Tiempo Finalizado' : 'Pitch en Curso'}
+              <div className={`text-xs mt-1 uppercase tracking-wider font-semibold transition-colors duration-300 ${
+                timeLeft <= 60 && !isTimesUp ? 'text-orange-primary' : 'text-text-light'
+              }`}>
+                {isTimesUp
+                  ? '⚡ Tiempo Finalizado'
+                  : (timeLeft <= 60 && timeLeft > 0)
+                    ? '⚠️ ¡Último Minuto!'
+                    : 'Pitch en Curso'}
               </div>
               {/* Progress bar */}
               <div className="mt-3 h-1.5 bg-gray-100 rounded-full overflow-hidden">

@@ -226,3 +226,73 @@ export function useAudioController() {
 
   return { play, stop, fadeOut, audioRef, stopAllAudio };
 }
+
+// ============================================================
+// SINTETIZADOR WEB AUDIO API — Genera sonidos sin usar archivos
+// ============================================================
+export function playSyntheticBeep(frequency = 800, duration = 0.1, type: OscillatorType = 'sine') {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = type;
+    osc.frequency.setValueAtTime(frequency, ctx.currentTime);
+
+    // Envolvente de volumen para evitar clics acústicos abruptos
+    gain.gain.setValueAtTime(0.12, ctx.currentTime); // Volumen suave (12%)
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + duration);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + duration);
+  } catch (error) {
+    console.warn('Fallo al reproducir pitido sintético:', error);
+  }
+}
+
+// ============================================================
+// playChimeAlert — Acorde melodioso digital tipo campana (C5, E5, G5)
+// ============================================================
+export function playChimeAlert(volume = 0.45) {
+  try {
+    const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+
+    const playNote = (freq: number, startDelay: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+
+      osc.type = 'triangle'; // Onda triangular para timbre suave similar a marimba/campana
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + startDelay);
+
+      gain.gain.setValueAtTime(0, ctx.currentTime + startDelay);
+      // Ataque de sonido rápido
+      gain.gain.linearRampToValueAtTime(volume, ctx.currentTime + startDelay + 0.04);
+      // Decaimiento exponencial para resonancia fluida
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + startDelay + duration);
+
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+
+      osc.start(ctx.currentTime + startDelay);
+      osc.stop(ctx.currentTime + startDelay + duration);
+    };
+
+    // Arpegio de triada mayor brillante
+    playNote(523.25, 0, 0.6);      // Nota C5 (Do)
+    playNote(659.25, 0.12, 0.6);   // Nota E5 (Mi)
+    playNote(783.99, 0.24, 0.8);   // Nota G5 (Sol)
+  } catch (error) {
+    console.warn('Fallo al reproducir chime sintético:', error);
+  }
+}
+
+
